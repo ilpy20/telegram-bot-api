@@ -96,6 +96,10 @@ const (
 	// UpdateTypePreCheckoutQuery is new incoming pre-checkout query. Contains full information about checkout
 	UpdateTypePreCheckoutQuery = "pre_checkout_query"
 
+	// UpdateTypePurchasedPaidMedia is a user purchased paid media with a non-empty payload
+	// sent by the bot in a non-channel chat
+	UpdateTypePurchasedPaidMedia = "purchased_paid_media"
+
 	// UpdateTypePoll is new poll state. Bots receive only updates about stopped polls and polls
 	// which are sent by the bot
 	UpdateTypePoll = "poll"
@@ -556,10 +560,17 @@ type DocumentConfig struct {
 
 func (config DocumentConfig) params() (Params, error) {
 	params, err := config.BaseFile.params()
+	if err != nil {
+		return params, err
+	}
 
 	params.AddNonEmpty("caption", config.Caption)
 	params.AddNonEmpty("parse_mode", config.ParseMode)
 	params.AddBool("disable_content_type_detection", config.DisableContentTypeDetection)
+	err = params.AddInterface("caption_entities", config.CaptionEntities)
+	if err != nil {
+		return params, err
+	}
 
 	return params, err
 }
@@ -767,6 +778,7 @@ type PaidMediaConfig struct {
 	BaseChat
 	StarCount             int64
 	Media                 []InputPaidMedia
+	Payload               string          // optional
 	Caption               string          // optional
 	ParseMode             string          // optional
 	CaptionEntities       []MessageEntity // optional
@@ -780,6 +792,7 @@ func (config PaidMediaConfig) params() (Params, error) {
 	}
 
 	params.AddNonZero64("star_count", config.StarCount)
+	params.AddNonEmpty("payload", config.Payload)
 	params.AddNonEmpty("caption", config.Caption)
 	params.AddNonEmpty("parse_mode", config.ParseMode)
 	params.AddBool("show_caption_above_media", config.ShowCaptionAboveMedia)
@@ -1815,6 +1828,60 @@ func (config EditChatInviteLinkConfig) params() (Params, error) {
 	params.AddNonZero("expire_date", config.ExpireDate)
 	params.AddNonZero("member_limit", config.MemberLimit)
 	params.AddBool("creates_join_request", config.CreatesJoinRequest)
+
+	return params, nil
+}
+
+// CreateChatSubscriptionLinkConfig creates a subscription invite link for a channel chat.
+// The bot must have the can_invite_users administrator rights.
+// The link can be edited using the method editChatSubscriptionInviteLink or
+// revoked using the method revokeChatInviteLink.
+// Returns the new invite link as a ChatInviteLink object.
+type CreateChatSubscriptionLinkConfig struct {
+	ChatConfig
+	Name               string
+	SubscriptionPeriod int
+	SubscriptionPrice  int
+}
+
+func (CreateChatSubscriptionLinkConfig) method() string {
+	return "createChatSubscriptionInviteLink"
+}
+
+func (config CreateChatSubscriptionLinkConfig) params() (Params, error) {
+	params, err := config.ChatConfig.params()
+	if err != nil {
+		return params, err
+	}
+
+	params.AddNonEmpty("name", config.Name)
+	params.AddNonZero("subscription_period", config.SubscriptionPeriod)
+	params.AddNonZero("subscription_price", config.SubscriptionPrice)
+
+	return params, nil
+}
+
+// EditChatSubscriptionLinkConfig edits a subscription invite link created by the bot.
+// The bot must have the can_invite_users administrator rights.
+// Returns the edited invite link as a ChatInviteLink object.
+type EditChatSubscriptionLinkConfig struct {
+	ChatConfig
+	InviteLink string
+	Name       string
+}
+
+func (EditChatSubscriptionLinkConfig) method() string {
+	return "editChatSubscriptionInviteLink"
+}
+
+func (config EditChatSubscriptionLinkConfig) params() (Params, error) {
+	params, err := config.ChatConfig.params()
+	if err != nil {
+		return params, err
+	}
+
+	params["invite_link"] = config.InviteLink
+	params.AddNonEmpty("name", config.Name)
 
 	return params, nil
 }

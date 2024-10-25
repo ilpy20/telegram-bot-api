@@ -114,6 +114,11 @@ type Update struct {
 	//
 	// optional
 	PreCheckoutQuery *PreCheckoutQuery `json:"pre_checkout_query,omitempty"`
+	// PurchasedPaidMedia is user purchased paid media with a non-empty
+	// payload sent by the bot in a non-channel chat
+	//
+	// optional
+	PurchasedPaidMedia *PaidMediaPurchased `json:"purchased_paid_media,omitempty"`
 	// Pool new poll state. Bots receive only updates about stopped polls and
 	// polls, which are sent by the bot
 	//
@@ -2032,7 +2037,14 @@ type VideoChatParticipantsInvited struct {
 }
 
 // This object represents a service message about the creation of a scheduled giveaway. Currently holds no information.
-type GiveawayCreated struct{}
+type GiveawayCreated struct {
+	// PrizeStarCount is the number of Telegram Stars to be split
+	// between giveaway winners;
+	// for Telegram Star giveaways only
+	//
+	// optional
+	PrizeStarCount int `json:"prize_star_count,omitempty"`
+}
 
 // Giveaway represents a message about a scheduled giveaway.
 type Giveaway struct {
@@ -2063,6 +2075,12 @@ type Giveaway struct {
 	//
 	// optional
 	CountryCodes []string `json:"country_codes,omitempty"`
+	// PrizeStarCount is the number of Telegram Stars to be split
+	// between giveaway winners;
+	// for Telegram Star giveaways only
+	//
+	// optional
+	PrizeStarCount int `json:"prize_star_count,omitempty"`
 	// PremiumSubscriptionMonthCount the number of months the Telegram Premium
 	// subscription won from the giveaway will be active for
 	//
@@ -2089,6 +2107,12 @@ type GiveawayWinners struct {
 	//
 	// optional
 	AdditionalChatCount int `json:"additional_chat_count,omitempty"`
+	// PrizeStarCount is the number of Telegram Stars to be split
+	// between giveaway winners;
+	// for Telegram Star giveaways only
+	//
+	// optional
+	PrizeStarCount int `json:"prize_star_count,omitempty"`
 	// PremiumSubscriptionMonthCount the number of months the Telegram Premium
 	// subscription won from the giveaway will be active for
 	//
@@ -2125,6 +2149,11 @@ type GiveawayCompleted struct {
 	//
 	// optional
 	GiveawayMessage *Message `json:"giveaway_message,omitempty"`
+	// IsStarGiveaway True, if the giveaway is a Telegram Star giveaway. 
+	// Otherwise, currently, the giveaway is a Telegram Premium giveaway.
+	//
+	// optional
+	IsStarGiveaway bool `json:"is_star_giveaway,omitempty"`
 }
 
 // LinkPreviewOptions describes the options used for link preview generation.
@@ -2662,6 +2691,17 @@ type ChatInviteLink struct {
 	//
 	// optional
 	PendingJoinRequestCount int `json:"pending_join_request_count,omitempty"`
+	// SubscriptionPeriod is the number of seconds the subscription
+	// will be active for before the next payment
+	//
+	// optional
+	SubscriptionPeriod int `json:"subscription_period,omitempty"`
+	// SubscriptionPrice is the amount of Telegram Stars a user
+	// must pay initially and after each subsequent subscription
+	// period to be a member of the chat using the link
+	//
+	// optional
+	SubscriptionPrice int `json:"subscription_price,omitempty"`
 }
 
 type ChatAdministratorRights struct {
@@ -2704,9 +2744,13 @@ type ChatMember struct {
 	//
 	// optional
 	IsAnonymous bool `json:"is_anonymous,omitempty"`
-	// UntilDate restricted and kicked only.
+	// UntilDate for restricted and kicked.
 	// Date when restrictions will be lifted for this user;
 	// unix time.
+	//
+	// Until date for member.
+	// Date when the user's subscription will expire;
+	// Unix time
 	//
 	// optional
 	UntilDate int64 `json:"until_date,omitempty"`
@@ -3092,11 +3136,13 @@ type ChatLocation struct {
 const (
 	ReactionTypeEmoji       = "emoji"
 	ReactionTypeCustomEmoji = "custom_emoji"
+	ReactionTypePaid        = "paid"
 )
 
-// ReactionType describes the type of a reaction. Currently, it can be one of: "emoji", "custom_emoji"
+// ReactionType describes the type of a reaction.
+// Currently, it can be one of: "emoji", "custom_emoji", "paid"
 type ReactionType struct {
-	// Type of the reaction. Can be "emoji", "custom_emoji"
+	// Type of the reaction. Can be "emoji", "custom_emoji", "paid"
 	Type string `json:"type"`
 	// Emoji type "emoji" only. Is a reaction emoji.
 	Emoji string `json:"emoji"`
@@ -3110,6 +3156,10 @@ func (r ReactionType) IsEmoji() bool {
 
 func (r ReactionType) IsCustomEmoji() bool {
 	return r.Type == ReactionTypeCustomEmoji
+}
+
+func (r ReactionType) IsPaid() bool {
+	return r.Type == ReactionTypePaid
 }
 
 // ReactionCount represents a reaction added to a message along with the number of times it was added.
@@ -3240,6 +3290,13 @@ type ChatBoostSource struct {
 	// Is an identifier of a message in the chat with the giveaway;
 	// the message could have been deleted already. May be 0 if the message isn't sent yet.
 	GiveawayMessageID int `json:"giveaway_message_id,omitempty"`
+	// PrizeStarCount "giveaway" only.
+	// The number of Telegram Stars to be split
+	// between giveaway winners;
+	// for Telegram Star giveaways only
+	//
+	// optional
+	PrizeStarCount int `json:"prize_star_count,omitempty"`
 	// IsUnclaimed "giveaway" only.
 	// True, if the giveaway was completed, but there was no user to win the prize
 	//
@@ -5024,6 +5081,14 @@ type PreCheckoutQuery struct {
 	OrderInfo *OrderInfo `json:"order_info,omitempty"`
 }
 
+// PaidMediaPurchased contains information about a paid media purchase.
+type PaidMediaPurchased struct {
+	// From is the user who purchased the media
+	From User `json:"from"`
+	// PaidMediaPayload bot-specified paid media payload
+	PaidMediaPayload string `json:"paid_media_payload"`
+}
+
 // RevenueWithdrawalState describes the state of a revenue withdrawal operation.
 // Currently, it can be one of
 //   - RevenueWithdrawalStatePending
@@ -5043,10 +5108,10 @@ type RevenueWithdrawalState struct {
 }
 
 // TransactionPartner describes the source of a transaction, or its recipient for outgoing transactions. Currently, it can be one of
-//   - TransactionPartnerFragment
 //   - TransactionPartnerUser
-//   - TransactionPartnerOther
+//   - TransactionPartnerFragment
 //   - TransactionPartnerTelegramAds
+//   - TransactionPartnerOther
 type TransactionPartner struct {
 	//Type of the transaction partner. Must be one of:
 	//	- fragment
@@ -5067,6 +5132,12 @@ type TransactionPartner struct {
 	//
 	// optional
 	InvoicePayload string `json:"invoice_payload,omitempty"`
+	// PaidMedia is the nformation about the paid media
+	// bought by the user
+	// Represent only in "user" state
+	//
+	// optional
+	PaidMedia []PaidMedia `json:"paid_media,omitempty"`
 }
 
 // StarTransaction describes a Telegram Star transaction.
